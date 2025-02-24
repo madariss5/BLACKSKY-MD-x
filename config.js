@@ -1,8 +1,8 @@
 const config = {
     // Bot info
-    name: 'WhatsApp Bot',
+    name: '𝔹𝕃𝔸ℂ𝕂𝕊𝕂𝕐-𝕄𝔻',
     prefix: '!',
-    owner: ['1234567890@s.whatsapp.net'],
+    owner: ['4915563151347'],
 
     // API Keys (using environment variables)
     openaiKey: process.env.OPENAI_API_KEY,
