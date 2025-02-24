@@ -1,4 +1,4 @@
-# CASPER-XMD WhatsApp Bot
+# BLACKSKY-MD-x WhatsApp Bot
 
 A feature-rich WhatsApp Multi-Device bot with multiple plugins including AI, media handling, group management, and fun commands.
 
@@ -42,8 +42,8 @@ A feature-rich WhatsApp Multi-Device bot with multiple plugins including AI, med
 
 1. Clone this repository
 ```bash
-git clone https://github.com/Casper-Tech-ke/CASPER-XMD.git
-cd CASPER-XMD
+git clone https://github.com/madariss5/BLACKSKY-MD-x.git
+cd BLACKSKY-MD-x
 ```
 
 2. Install dependencies
