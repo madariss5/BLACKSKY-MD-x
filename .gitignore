@@ -1,0 +1,30 @@
+# Dependencies
+node_modules/
+package-lock.json
+
+# Environment variables
+.env
+
+# Authentication files
+auth_info/
+*.data.json
+
+# Log files
+*.log
+npm-debug.log*
+
+# Runtime data
+bot.json
+Media/
+temp/
+*.temp.*
+
+# Editor directories
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# OS files
+.DS_Store
+Thumbs.db
