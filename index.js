@@ -1,89 +1,56 @@
- const { spawn } = require('child_process');
-const path = require('path');
-const fs = require('fs');
-const moment = require('moment-timezone');
+const { default: makeWASocket, DisconnectReason, useMultiFileAuthState } = require('@whiskeysockets/baileys');
+const { Boom } = require('@hapi/boom');
+const P = require('pino');
+const { initDatabase } = require('./lib/database');
+const { messageHandler } = require('./lib/msgHandler');
+const config = require('./config');
 
-const MEMORY_LIMIT = 250; // MB
-const RESTART_DELAY = 3000; // ms
+async function connectToWhatsApp() {
+    const { state, saveCreds } = await useMultiFileAuthState('auth_info');
+    
+    const sock = makeWASocket({
+        printQRInTerminal: true,
+        auth: state,
+        logger: P({ level: 'silent' })
+    });
 
-const TIMEZONE = "Africa/Nairobi";
+    // Handle connection events
+    sock.ev.on('connection.update', async (update) => {
+        const { connection, lastDisconnect } = update;
+        
+        if(connection === 'close') {
+            const shouldReconnect = (lastDisconnect?.error instanceof Boom)?.output?.statusCode !== DisconnectReason.loggedOut;
+            
+            if(shouldReconnect) {
+                connectToWhatsApp();
+            }
+        }
+    });
 
-function getLogFileName() {
-  return `${moment().tz(TIMEZONE).format('YYYY-MM-DD')}.log`;
+    // Handle credentials update
+    sock.ev.on('creds.update', saveCreds);
+
+    // Handle messages
+    sock.ev.on('messages.upsert', async m => {
+        if (m.type === 'notify') {
+            try {
+                await messageHandler(sock, m.messages[0]);
+            } catch (err) {
+                console.error('Error in message handler:', err);
+            }
+        }
+    });
 }
 
-function createTmpFolder() {
-const folderName = "tmp";
-const folderPath = path.join(__dirname, folderName);
-
-if (!fs.existsSync(folderPath)) {
-fs.mkdirSync(folderPath);
-   }
- }
- 
-createTmpFolder();
-
-function logMessage(message) {
-  const timestamp = moment().tz(TIMEZONE).format('HH:mm z');
-  console.log(`[CASPER-XMD] ${message}`);
-  fs.appendFileSync(path.join(__dirname, 'tmp', getLogFileName()), `[${timestamp}] ${message}\n`);
-}
-
-function start() {
-  process.env.SERVER_MEMORY = '716';
-  process.env.NODE_OPTIONS = '--no-deprecation';
-
-  const args = [path.join(__dirname, 'core.js'), ...process.argv.slice(2)];
-  
-  logMessage('Starting...');
-
-  const logFilePath = path.join(__dirname, 'tmp', getLogFileName());
-  const errorLogStream = fs.createWriteStream(logFilePath, { flags: 'a' });
-
-  let p = spawn(process.argv[0], args, {
-    stdio: ['inherit', 'inherit', 'pipe', 'ipc'],
-  });
-
-  p.stderr.on('data', (data) => {
-    const errorMsg = `[${moment().tz(TIMEZONE).format('HH:mm z')}] ${data.toString()}`;
-    console.error(errorMsg);
-    errorLogStream.write(errorMsg);
-  });
-
-  const memoryCheckInterval = setInterval(() => {
+// Initialize database and start the bot
+async function startBot() {
     try {
-      if (!p.pid) return; 
-
-      const { execSync } = require('child_process');
-      const memoryUsage = parseFloat(execSync(`ps -o rss= -p ${p.pid}`).toString().trim()) / 1024; 
-
-      if (memoryUsage > MEMORY_LIMIT) {
-        logMessage(`Memory usage exceeded ${MEMORY_LIMIT}MB. Restarting...`);
-        p.kill();
-      }
-    } catch (error) {
-      logMessage(`Memory check failed: ${error.message}`);
+        await initDatabase();
+        connectToWhatsApp();
+    } catch (err) {
+        console.error('Failed to start bot:', err);
+        process.exit(1);
     }
-  }, 600000);
-
-  p.on('exit', (code) => {
-    clearInterval(memoryCheckInterval);
-    logMessage(`Exited with code: ${code}`);
-
-    if (code !== 0) {
-      setTimeout(start, RESTART_DELAY);
-    }
-  });
-
-  const handleShutdown = (signal) => {
-    logMessage(`Shutting down CASPER-XMD due to ${signal}...`);
-    p.kill();
-    errorLogStream.end();
-    process.exit(0);
-  };
-
-  process.on('SIGINT', handleShutdown);
-  process.on('SIGTERM', handleShutdown);
 }
 
-start();
+startBot();
