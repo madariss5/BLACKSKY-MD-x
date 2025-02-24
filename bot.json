@@ -5,5 +5,7 @@
   "stats": {
     "commands": 0,
     "messages": 0
-  }
+  },
+  "banned": [],
+  "warnings": {}
 }
